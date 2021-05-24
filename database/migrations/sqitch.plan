@@ -2,4 +2,6 @@
 %project=postgrest
 
 initroles 2021-05-23T20:57:33Z river matt <me@rivermatt.com> # Add web_anon and authenticator users for api project.
-apischema 2021-05-23T20:44:55Z river matt <me@rivermatt.com> # Add schema for postgrest api project.
+apischema [initroles] 2021-05-23T20:44:55Z river matt <me@rivermatt.com> # Add schema for postgrest api project.
+jwt_token [apischema] 2021-05-24T01:48:47Z river matt <me@rivermatt.com> # Add jwt token signing and verifying
+@v0.0.1-dev1 2021-05-24T04:30:54Z river matt <me@rivermatt.com> # init roles. jwt token func.
