@@ -2,7 +2,7 @@
 -- requires: initroles
 
 BEGIN;
-CREATE EXTENSION pgcrypto;
+CREATE EXTENSION if not exists pgcrypto;
 
 CREATE OR REPLACE FUNCTION auth.url_encode(data bytea) RETURNS text LANGUAGE sql AS $$
     SELECT translate(encode(data, 'base64'), E'+/=\n', '-_');
@@ -73,13 +73,50 @@ SELECT
 FROM regexp_split_to_array(token, '\.') r;
 $$;
 
+CREATE TYPE auth.jwt_token AS (
+    token text
+);
+
+-- SET SESSION 'app.jwt_secret' to 'secret'
+CREATE FUNCTION auth.jwt_claim(role_in text DEFAULT 'web_anon') RETURNS auth.jwt_token AS $$
+    SELECT auth.sign(
+        row_to_json(r), current_setting('postgrest.jwt_secret')
+    ) AS token
+    FROM (
+        SELECT
+            role_in as role
+            ,extract(epoch from now())::integer + 300 AS exp
+            ,current_setting('request.header.user-agent', true)::text as user_agent
+    ) r;
+$$ LANGUAGE sql;
+CREATE OR REPLACE FUNCTION auth.check_user() RETURNS void AS $$
+BEGIN
+  IF current_user = 'api_user' THEN
+    RAISE EXCEPTION 'web_anon only user allowed. access denied for %', current_user
+      USING HINT = 'try without authentication?';
+  END IF;
+END
+$$ LANGUAGE plpgsql;
+
+
+
 grant execute on function 
     auth.url_encode
     ,auth.url_decode 
     ,auth.algorithm_sign
     ,auth.sign
     ,auth.verify
+    ,auth.jwt_claim
+    ,hmac(bytea, bytea, text)
+    ,hmac(text, text, text)
+    ,auth.check_user
 to web_anon;
+grant execute on function 
+    auth.check_user
+to authenticator;
 
+grant execute on function 
+    auth.check_user
+to api_user;
 
 COMMIT;

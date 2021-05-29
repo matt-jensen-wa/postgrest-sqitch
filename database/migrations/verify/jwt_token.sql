@@ -15,6 +15,8 @@ BEGIN
     ASSERT (SELECT has_function_privilege('web_anon', 'auth.sign(json, text, text)', 'execute')), 'bad web_anon privilege';
 
     ASSERT (SELECT has_function_privilege('web_anon', 'auth.verify(text, text, text)', 'execute')), 'bad web_anon privilege';
+    ASSERT (SELECT 1/count(auth.jwt_claim('web_anon'))), 'jwt_claim failed';
+    ASSERT (SELECT 1/count(auth.check_user())), 'check_user failed';
 END $$;
 
 ROLLBACK;
