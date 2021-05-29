@@ -73,5 +73,11 @@ SELECT
 FROM regexp_split_to_array(token, '\.') r;
 $$;
 
+grant execute on function api.url_encode to web_anon;
+grant execute on function api.url_decode to web_anon;
+grant execute on function api.algorithm_sign to web_anon;
+grant execute on function api.sign to web_anon;
+grant execute on function api.verify to web_anon;
+
 
 COMMIT;
