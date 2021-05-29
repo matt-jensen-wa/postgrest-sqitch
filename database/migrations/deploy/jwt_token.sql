@@ -4,11 +4,11 @@
 BEGIN;
 CREATE EXTENSION pgcrypto;
 
-CREATE OR REPLACE FUNCTION api.url_encode(data bytea) RETURNS text LANGUAGE sql AS $$
+CREATE OR REPLACE FUNCTION auth.url_encode(data bytea) RETURNS text LANGUAGE sql AS $$
     SELECT translate(encode(data, 'base64'), E'+/=\n', '-_');
 $$;
 
-CREATE OR REPLACE FUNCTION api.url_decode(data text) RETURNS bytea LANGUAGE sql AS $$
+CREATE OR REPLACE FUNCTION auth.url_decode(data text) RETURNS bytea LANGUAGE sql AS $$
     WITH t AS (
         SELECT 
             translate(data, '-_', '+/') 
@@ -30,7 +30,7 @@ CREATE OR REPLACE FUNCTION api.url_decode(data text) RETURNS bytea LANGUAGE sql 
 $$;
 
 
-CREATE OR REPLACE FUNCTION api.algorithm_sign(signables text, secret text, algorithm text)
+CREATE OR REPLACE FUNCTION auth.algorithm_sign(signables text, secret text, algorithm text)
 RETURNS text LANGUAGE sql AS $$
     WITH alg AS (
         SELECT 
@@ -42,42 +42,44 @@ RETURNS text LANGUAGE sql AS $$
         END AS id
     )  -- hmac throws error
     SELECT 
-        api.url_encode(hmac(signables, secret, alg.id)) 
+        auth.url_encode(hmac(signables, secret, alg.id)) 
     FROM alg;
 $$;
 
 
-CREATE OR REPLACE FUNCTION api.sign(payload json, secret text, algorithm text DEFAULT 'HS256') RETURNS text LANGUAGE sql AS $$
+CREATE OR REPLACE FUNCTION auth.sign(payload json, secret text, algorithm text DEFAULT 'HS256') RETURNS text LANGUAGE sql AS $$
 WITH
 header AS (
     SELECT 
-        api.url_encode(convert_to('{"alg":"' || algorithm || '","typ":"JWT"}', 'utf8')) AS data
+        auth.url_encode(convert_to('{"alg":"' || algorithm || '","typ":"JWT"}', 'utf8')) AS data
 ),
 payload AS (
-    SELECT api.url_encode(convert_to(payload::text, 'utf8')) AS data
+    SELECT auth.url_encode(convert_to(payload::text, 'utf8')) AS data
 ),
 signables AS (
     SELECT header.data || '.' || payload.data AS data FROM header, payload
 )
 SELECT
-    signables.data || '.' || api.algorithm_sign(signables.data, secret, algorithm) 
+    signables.data || '.' || auth.algorithm_sign(signables.data, secret, algorithm) 
 FROM signables;
 $$;
 
 
-CREATE OR REPLACE FUNCTION api.verify(token text, secret text, algorithm text DEFAULT 'HS256') RETURNS table(header json, payload json, valid boolean) LANGUAGE sql AS $$
+CREATE OR REPLACE FUNCTION auth.verify(token text, secret text, algorithm text DEFAULT 'HS256') RETURNS table(header json, payload json, valid boolean) LANGUAGE sql AS $$
 SELECT
-    convert_from(api.url_decode(r[1]), 'utf8')::json AS header,
-    convert_from(api.url_decode(r[2]), 'utf8')::json AS payload,
-    r[3] = api.algorithm_sign(r[1] || '.' || r[2], secret, algorithm) AS valid
+    convert_from(auth.url_decode(r[1]), 'utf8')::json AS header,
+    convert_from(auth.url_decode(r[2]), 'utf8')::json AS payload,
+    r[3] = auth.algorithm_sign(r[1] || '.' || r[2], secret, algorithm) AS valid
 FROM regexp_split_to_array(token, '\.') r;
 $$;
 
-grant execute on function api.url_encode to web_anon;
-grant execute on function api.url_decode to web_anon;
-grant execute on function api.algorithm_sign to web_anon;
-grant execute on function api.sign to web_anon;
-grant execute on function api.verify to web_anon;
+grant execute on function 
+    auth.url_encode
+    ,auth.url_decode 
+    ,auth.algorithm_sign
+    ,auth.sign
+    ,auth.verify
+to web_anon;
 
 
 COMMIT;

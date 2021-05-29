@@ -3,10 +3,10 @@
 BEGIN;
 
 DROP EXTENSION pgcrypto;
-DROP FUNCTION api.url_encode;
-DROP FUNCTION api.url_decode;
-DROP FUNCTION api.algorithm_sign;
-DROP FUNCTION api.sign;
-DROP FUNCTION api.verify;
+DROP FUNCTION auth.url_encode;
+DROP FUNCTION auth.url_decode;
+DROP FUNCTION auth.algorithm_sign;
+DROP FUNCTION auth.sign;
+DROP FUNCTION auth.verify;
 
 COMMIT;
